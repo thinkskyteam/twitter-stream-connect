@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: twitter-stream-connect-config
+  namespace: kafka
+data:
+  PLUGIN_PATH: "/usr/share/java,/usr/share/confluent-hub-components"

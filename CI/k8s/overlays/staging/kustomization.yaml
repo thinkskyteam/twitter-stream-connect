@@ -1,0 +1,7 @@
+bases:
+  - ../../base
+commonLabels:
+  app: gateway
+patchesStrategicMerge:
+  - configMap.yaml
+  - deployment.yaml

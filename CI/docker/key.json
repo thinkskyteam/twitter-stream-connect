@@ -1,0 +1,17 @@
+{
+  "type": "record",
+  "name": "StatusKey",
+  "namespace": "com.thinksky.kafka.twitter.stream.connect",
+  "fields": [
+    {
+      "name": "Id",
+      "type": [
+        "null",
+        "long"
+      ],
+      "default": null
+    }
+  ],
+  "connect.doc": "Key for a twitter status.",
+  "connect.name": "com.thinksky.kafka.twitter.stream.connect.StatusKey"
+}

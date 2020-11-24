@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gateway-configs
+  namespace: kafka
+data:
+  KUBERNETES_NAMESPACE: kafka

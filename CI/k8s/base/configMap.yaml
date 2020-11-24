@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: twitter-stream-connect-config
+  namespace: kafka
+data:
+  PLUGIN_PATH: "/usr/share/java,/usr/share/confluent-hub-components"
+  KEY_CONVERTER: "io.confluent.connect.avro.AvroConverter"
+  VALUE_CONVERTER: "io.confluent.connect.avro.AvroConverter"
+  KEY_CONVERTER_SCHEMAS_ENABLE: "false"
+  VALUE_CONVERTER_SCHEMAS_ENABLE: "false"
+  INTERNAL_KEY_CONVERTER: "org.apache.kafka.connect.json.JsonConverter"
+  INTERNAL_VALUE_CONVERTER: "org.apache.kafka.connect.json.JsonConverter"
+  CONFIG_STORAGE_REPLICATION_FACTOR: "3"
+  OFFSET_STORAGE_REPLICATION_FACTOR: "3"
+  STATUS_STORAGE_REPLICATION_FACTOR: "3"

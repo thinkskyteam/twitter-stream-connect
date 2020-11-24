@@ -1,0 +1,10 @@
+bases:
+- ../../base
+commonLabels:
+  app: twitter-stream-connect
+#resources:
+#  - configMap.yaml
+#  - secrets.yaml
+#  - istio-gateway.yaml
+#patchesStrategicMerge:
+#  - deployment.yaml

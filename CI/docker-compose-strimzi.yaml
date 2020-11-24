@@ -1,0 +1,48 @@
+version: '2'
+
+services:
+
+  zookeeper:
+    image: strimzi/kafka:0.19.0-kafka-2.5.0
+    command: [
+        "sh", "-c",
+        "bin/zookeeper-server-start.sh config/zookeeper.properties"
+    ]
+    ports:
+      - "2181:2181"
+    environment:
+      LOG_DIR: /tmp/logs
+
+  kafka:
+    image: strimzi/kafka:0.19.0-kafka-2.5.0
+    command: [
+        "sh", "-c",
+        "bin/kafka-server-start.sh config/server.properties --override listeners=$${KAFKA_LISTENERS} --override advertised.listeners=$${KAFKA_ADVERTISED_LISTENERS} --override zookeeper.connect=$${KAFKA_ZOOKEEPER_CONNECT}"
+    ]
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      LOG_DIR: "/tmp/logs"
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+
+  kafka-connect:
+    image: registry.gitlab.com/askme_team/kafka-connect/twitter-stream
+    command: [
+        "sh", "-c",
+        "bin/connect-standalone.sh /opt/kafka/plugins/twitter-stream-connect/connect-standalone.properties /opt/kafka/plugins/twitter-stream-connect/twitter-stream-connect.properties"
+    ]
+    depends_on:
+      - kafka
+    ports:
+      - "8083:8083"
+    environment:
+      group.id: connect-cluster
+      offset.storage.topic: connect-cluster-offsets
+      config.storage.topic: connect-cluster-configs
+      status.storage.topic: connect-cluster-status
+      KAFKA_CONNECT_BOOTSTRAP_SERVERS: localhost:9092
+      KAFKA_HEAP_OPTS: -Xms128M

@@ -1,0 +1,230 @@
+== Install Confluent OSS
+
+Install All modules
+====
+[source,bash]
+----
+helm install think-confluent confluentinc/cp-helm-charts --namespace=kafka
+----
+====
+
+=== Install All except Connect and REST
+====
+[source,bash]
+----
+helm install think-confluent --set cp-kafka-rest.enabled=false,cp-kafka-connect.enabled=false confluentinc/cp-helm-charts --namespace=kafka
+----
+====
+
+helm upgrade think-confluent --set cp-control-center.enabled=false confluentinc/cp-helm-charts --namespace=kafka
+
+=== Test Installed Kafka
+List of topics
+====
+[source, bash]
+----
+kafka-topics --list --bootstrap-server think-confluent-cp-kafka.kafka.svc:9092
+----
+====
+
+Create a topic
+====
+[source, bash]
+----
+kafka-topics --create --topic twitter-stream-programming --bootstrap-server think-confluent-cp-kafka.kafka.svc:9092 --partitions 3 \
+      --replication-factor 3
+kafka-topics --describe --topic twitter-stream-programming --bootstrap-server think-confluent-cp-kafka.kafka.svc:9092
+----
+====
+
+Produce test data
+====
+[source, bash]
+----
+kafka-console-producer --broker-list think-confluent-cp-kafka.kafka.svc:9092 --topic twitter-stream-programming
+----
+====
+
+Consumer test Data
+====
+[source, bash]
+----
+kafka-console-consumer --bootstrap-server think-confluent-cp-kafka.kafka.svc:9092 --topic twitter-stream-programming --from-beginning
+----
+====
+
+kafka-run-class kafka.tools.GetOffsetShell --broker-list think-confluent-cp-kafka.kafka.svc:9092 --topic twitter-stream-programming --time -1
+
+== Curl Connect
+
+====
+[source, bash]
+----
+curl -s 127.0.0.1:8083/connectors | jq
+----
+====
+
+
+====
+[source, bash]
+----
+curl -s -X POST -H "Content-Type: application/json" --data '{"name": "twitter-stream-connect", "config":{"connector.class":"com.thinksky.kafka.twitter.stream.connect.TwitterSourceConnector","tasks.max":"2","name":"twitter-stream-connect","kafka.status.topic":"twitter-stream-programming", "process.deletes": "false","filter.keywords":"programming,java,kafka,scala","twitter.oauth.accessTokenSecret":"vRKgpHNkJSFkn73HyLYNxpWNZQOkIS8zuW6nL0BB1yPqW", "twitter.oauth.consumerSecret": "HZJUZH7hcNggbkBh2SIOh6YddWltpq8iaAjTma0bPIcLwm6kEw", "twitter.oauth.accessToken": "1937500046-7YcD3lSEYo3DLIWz3d632AoRtPGFldJizwQdsNZ", "twitter.oauth.consumerKey": "0Es5fzRfZbWWFXvS7CdVa5bqf"}}' http://127.0.0.1:8083/connectors | jq
+----
+====
+
+== Kubernetes Run
+
+====
+[source,bash]
+----
+kubectl run kafka-connect -ti --image=registry.gitlab.com/askme_team/kafka-connect/twitter-stream --namespace=kafka --rm=true --restart=Never --overrides='{ "apiVersion": "v1", "spec": { "imagePullSecrets": [{"name": "gitlab-kafka"}]}}'  -- /bin/bash
+----
+====
+
+== Kubernetes Copy
+
+====
+[source, bash]
+----
+kubectl cp ./twitter-stream-connect -n kafka -c  cp-kafka-connect-server think-confluent-cp-kafka-connect-6c6cffd897-kbx8q:/usr/share/confluent-hub-components/
+----
+====
+
+
+== Elastic Connect
+
+Install Elastic
+====
+[source, bash]
+----
+kubectl apply -f all-in-one.yaml
+----
+====
+
+=== Elastic
+====
+[source, bash]
+----
+kubectl apply -f elastic.yaml
+----
+====
+
+----
+PASSWORD=$(kubectl get secret elasticsearch-es-elastic-user -o go-template='{{.data.elastic | base64decode}}')
+Pass: Tz3LI42GgzrvA850o8B22Xv8
+----
+
+=== Test Elastic
+====
+[source, bash]
+----
+kubectl port-forward service/elasticsearch-es-http 9200
+curl -u "elastic:$PASSWORD" -k "https://localhost:9200"
+curl -u "elastic:Tz3LI42GgzrvA850o8B22Xv8" -k "https://localhost:9200"
+----
+====
+
+=== Kibaba
+====
+[source, bash]
+----
+kubectl apply -f kibana.yaml
+----
+====
+
+=== Test Kibana
+====
+[source, bash]
+----
+kubectl get secret elasticsearch-es-elastic-user -o=jsonpath='{.data.elastic}' | base64 --decode; echo
+----
+====
+YA8X4JsZp0sj731PN1m4m3X3
+
+====
+[source, bash]
+----
+kubectl apply -f kibana.yaml
+----
+====
+
+=== Activate Twitter-Stream connect
+
+====
+[source, bash]
+----
+curl -s -X POST -H "Content-Type: application/json" --data '{"name": "twitter-stream-connect", "config":{"connector.class":"com.thinksky.kafka.twitter.stream.connect.TwitterSourceConnector","tasks.max":"2","name":"twitter-stream-connect","kafka.status.topic":"twitter-stream-programming", "process.deletes": "false","filter.keywords":"programming,java,kafka,scala","twitter.oauth.accessTokenSecret":"vRKgpHNkJSFkn73HyLYNxpWNZQOkIS8zuW6nL0BB1yPqW", "twitter.oauth.consumerSecret": "HZJUZH7hcNggbkBh2SIOh6YddWltpq8iaAjTma0bPIcLwm6kEw", "twitter.oauth.accessToken": "1937500046-7YcD3lSEYo3DLIWz3d632AoRtPGFldJizwQdsNZ", "twitter.oauth.consumerKey": "0Es5fzRfZbWWFXvS7CdVa5bqf"}}' http://127.0.0.1:8083/connectors | jq
+----
+====
+
+Edit Twitter-Stream Connect
+
+====
+[source, bash]
+----
+curl -s -X PUT  http://127.0.0.1:8083/connectors/twitter-stream-connect/config -H "Content-Type: application/json" --data '{"connector.class":"com.thinksky.kafka.twitter.stream.connect.TwitterSourceConnector","tasks.max":"1","name":"twitter-stream-connect","kafka.status.topic":"twitter-stream-programming", "process.deletes": "false","filter.keywords":"kubernetes,devops,docker","twitter.oauth.accessTokenSecret":"vRKgpHNkJSFkn73HyLYNxpWNZQOkIS8zuW6nL0BB1yPqW", "twitter.oauth.consumerSecret": "HZJUZH7hcNggbkBh2SIOh6YddWltpq8iaAjTma0bPIcLwm6kEw", "twitter.oauth.accessToken": "1937500046-7YcD3lSEYo3DLIWz3d632AoRtPGFldJizwQdsNZ", "twitter.oauth.consumerKey": "0Es5fzRfZbWWFXvS7CdVa5bqf"}}'  | jq
+----
+====
+
+=== Activate Elastic connect
+
+====
+[source, bash]
+----
+curl -X POST http://localhost:8083/connectors -H "Content-Type: application/json" -d '{ "name": "twitter-elasticsearch-connector", "config": { "connector.class": "io.confluent.connect.elasticsearch.ElasticsearchSinkConnector", "connection.url": "http://elasticsearch-es-http.default.svc:9200", "connection.username": "elastic", "connection.password": "Tz3LI42GgzrvA850o8B22Xv8", "tasks.max": "1", "topics": "twitter-stream-programming",  "type.name": "_doc" }}' | jq
+
+curl -X POST http://localhost:8083/connectors -H "Content-Type: application/json" -d '{ "name": "twitter-elasticsearch-connector", "config": { "connector.class": "io.confluent.connect.elasticsearch.ElasticsearchSinkConnector", "connection.url": "http://elasticsearch-es-http.default.svc:9200", "connection.username": "elastic", "connection.password": "Tz3LI42GgzrvA850o8B22Xv8", "tasks.max": "1", "topics": "twitter-stream-programming", "value.converter": "io.confluent.connect.avro.AvroConverter", "key.converter": "io.confluent.connect.avro.AvroConverter", "value.converter.schemas.enable": "true", "key.converter.schema.registry.url": "http://think-confluent-cp-schema-registry:8081", "value.converter.schema.registry.url": "http://think-confluent-cp-schema-registry:8081", "transforms": "extractKey", "transforms.extractKey.type":"org.apache.kafka.connect.transforms.ExtractField$Key", "transforms.extractKey.field":"Id", "type.name": "_doc" }}' | jq
+----
+====
+
+"value.converter": "io.confluent.connect.avro.AvroConverter", "key.converter": "io.confluent.connect.avro.AvroConverter", "value.converter.schemas.enable": "true", "key.converter.schema.registry.url": "http://think-confluent-cp-schema-registry:8081", "value.converter.schema.registry.url": "http://think-confluent-cp-schema-registry:8081", "transforms": "extractKey", "transforms.extractKey.type":"org.apache.kafka.connect.transforms.ExtractField$Key", "transforms.extractKey.field":"id"
+
+"value.converter": "org.apache.kafka.connect.json.JsonConverter", "value.converter.schemas.enable": "false",  "schema.ignore": "true", "key.converter": "org.apache.kafka.connect.json.JsonConverter", "key.ignore": "true",
+"behavior.on.null.values": "delete",
+
+
+=== Edit stablished connect
+
+curl -X PUT http://localhost:8083/connectors/twitter-elasticsearch-connector/config -H "Content-Type: application/json" -d '{"connector.class": "io.confluent.connect.elasticsearch.ElasticsearchSinkConnector", "connection.url": "http://elasticsearch-es-http.default.svc:9200", "tasks.max": "1", "topics": "twitter-stream-programming", "type.name": "_doc" }' | jq
+
+
+
+== Schema Registry
+
+=== Find out List of Subjects
+====
+----
+[source, bash]
+curl -X GET http://localhost:8081/subjects
+----
+====
+
+Outcome will be like
+
+[source,json]
+----
+[
+  "twitter-stream-programming-value",
+  "twitter-stream-programming-key"
+]
+----
+
+=== Get the latest version of Subjects
+====
+[source, bash]
+----
+curl -X GET http://localhost:8081/subjects
+----
+====
+
+
+==== Total Count
+39,346
+
+
+== CoinBerry
+793eee7a75b86b9ed62943ea8c88818e479ed3d40ae5ae866553bffd40900343
+
+== Coinbase
+API Key: pDtGQcMqpIWZ5XGV
+API Secret: 34L58F9WthHKzM668bXNCmrRxQNwwKeP
